@@ -48,6 +48,12 @@ if not cursor.fetchone()[0]==1:
 
 GetStudentInfo()
 
+# def AddSong():
+
+# def DelSong():
+
+# def SearchSong():
+
 def MakeTableData():
     headings = ['ID', 'Song Name', 'Artist', 'Time']
     data = records
@@ -142,6 +148,17 @@ def MakeTable():
                         expand_y=True,
                         enable_click_events=True,  # Comment out to not enable header and other clicks
                         )],
+              [sg.Text("Start a command below.")],
+              
+              # Difficulty radio buttons.
+              [
+                sg.Radio('Add Song', "RADIO1", default=True),
+                sg.Radio('Delete Song', "RADIO1"),
+                sg.Radio('Search', "RADIO1"),
+              ],
+                 
+              # Continue and close buttons
+              [sg.Button('Continue'), sg.Button('Quit')],
 
               [sg.Text('Cell clicked:'), sg.T(key='-CLICKED_CELL-')]]
 
@@ -151,7 +168,7 @@ def MakeTable():
     while True:
         print()
         event, values = window.read()
-        if event in (sg.WIN_CLOSED, 'Exit'):
+        if event in (sg.WIN_CLOSED, 'Quit'):
             break
         # Checks if the event object is of tuple data type, indicating a click on a cell'
         elif isinstance(event, tuple):
@@ -162,6 +179,14 @@ def MakeTable():
             # Displays that coordinates of the cell that was clicked on
             window['-CLICKED_CELL-'].update(cell)
             EditCell(window, '-TABLE-', row+1, col, justify='right')
+
+        if values[0]:
+          AddStong()
+        elif values[1]:
+          DelSong()
+        else:
+          SearchSong()
+        break
 
     window.close()
 
