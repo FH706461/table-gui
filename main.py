@@ -48,7 +48,47 @@ if not cursor.fetchone()[0]==1:
 
 GetStudentInfo()
 
-# def AddSong():
+def AddSong():
+  # The stuff inside the window. sg.Text() is basically the gui version of print()
+  layout = [
+    
+    # Select difficulty text
+    [sg.Text("Please enter a valid ID.")],
+    [sg.InputText(key = 'inputID')],
+    [sg.Text("Please enter the song name.")],
+    [sg.InputText(key = 'inputSongName')],
+    [sg.Text("Please enter the artist.")],
+    [sg.InputText(key = 'inputArtist')],
+    [sg.Text("Please enter the length of the song.")],
+    [sg.InputText(key = 'inputTimeLength')],
+
+    # Continue and close buttons
+    [sg.Button('Continue'), sg.Button('Quit')]
+          ]
+
+  # Creates the window
+  window = sg.Window('  Add Song', layout)
+
+  # Event Loop to process "events" and get the "values" of the inputs
+  while True:
+    event, values = window.read()
+
+    ID = values['inputID']
+    exist = False
+    
+    for i in range(len(records)):
+      if ID == records[i][0]:
+        print("\n\033[1;31mStudent number already in use.")
+        exist = True
+    if exist:
+      break
+
+    # For when the user closes the window or clicks cancel
+    if event == sg.WIN_CLOSED or event == 'Quit':
+      break
+
+  window.close()
+
 
 # def DelSong():
 
@@ -181,12 +221,14 @@ def MakeTable():
             EditCell(window, '-TABLE-', row+1, col, justify='right')
 
         if values[0]:
-          AddStong()
+          AddSong()
+          continue
         elif values[1]:
           DelSong()
+          continue
         else:
           SearchSong()
-        break
+          continue
 
     window.close()
 
