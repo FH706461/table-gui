@@ -15,7 +15,7 @@ cursor.execute('''select count(name)
                   and name = 'SongList';''')
 
 # Updates table
-def GetStudentInfo():
+def GetSongInfo():
   sqlite_select_query = """SELECT * from SongList"""
   
   cursor.execute(sqlite_select_query)
@@ -46,53 +46,126 @@ if not cursor.fetchone()[0]==1:
   cursor.executemany(sqlite_insert_query, recordsToInsert)
   sqliteConnection.commit()
 
-GetStudentInfo()
+GetSongInfo()
 
 def AddSong():
   # The stuff inside the window. sg.Text() is basically the gui version of print()
-  layout = [
+  addLayout = [
     
     # Select difficulty text
     [sg.Text("Please enter a valid ID.")],
-    [sg.InputText(key = 'inputID')],
+    [sg.InputText(key = 'inputAddID')],
     [sg.Text("Please enter the song name.")],
     [sg.InputText(key = 'inputSongName')],
     [sg.Text("Please enter the artist.")],
     [sg.InputText(key = 'inputArtist')],
     [sg.Text("Please enter the length of the song.")],
     [sg.InputText(key = 'inputTimeLength')],
+    [sg.Text("", key = 'state')],
 
     # Continue and close buttons
     [sg.Button('Continue'), sg.Button('Quit')]
           ]
-
-  # Creates the window
-  window = sg.Window('  Add Song', layout)
+  
+    # Creates the window
+  window = sg.Window('  Add Song', addLayout)
 
   # Event Loop to process "events" and get the "values" of the inputs
   while True:
+
     event, values = window.read()
 
-    ID = values['inputID']
-    exist = False
+    ID = values['inputAddID']
     
+    # For when the user closes the window or clicks cancel
+    if event == sg.WIN_CLOSED or event == 'Quit':
+      break  
+      
     for i in range(len(records)):
       if ID == records[i][0]:
-        print("\n\033[1;31mStudent number already in use.")
-        exist = True
-    if exist:
-      break
+        window["state"].update("Song ID already in use.")
 
+
+
+  window.close()
+
+def DelSong():
+  delLayout = [
+    
+    # Select difficulty text
+    [sg.Text("Please enter an ID to delete a song.")],
+    [sg.InputText("", key = 'inputDelID')],
+    [sg.Text("", key = 'state')],
+      
+    # Continue and close buttons
+    [sg.Button('Continue'), sg.Button('Quit')]
+          ]
+
+  window = sg.Window('  Delete Song', delLayout)
+
+  while True:
+
+    event, values = window.read()
+
+    delID = values['inputDelID']
+    
     # For when the user closes the window or clicks cancel
     if event == sg.WIN_CLOSED or event == 'Quit':
       break
 
+  sqlite_delete_query = "delete from Students where studentNumber = '" + str(delID) +"';"    
+  cursor.execute(sqlite_delete_query)
+  sqliteConnection.commit()
+
+  # Error checking
+  if int(cursor.rowcount) > 0:
+    window["state"].update(+ str(cursor.rowcount) + " row successfully deleted")
+  elif int(cursor.rowcount) > 0:
+    window["state"].update("No students found. Try again. (" + str(cursor.rowcount) + " rows successfully deleted).")
+  else:
+    window["state"].update("Input invalid. Try again.")
+    
   window.close()
+  
+  
+def SearchSong():
+  findLayout = [
+    
+    # Select difficulty text
+    [sg.Text("Please enter an ID to delete a song.")],
+    [sg.InputText(key = 'inputFind')],
+    [sg.Text("", key = 'state')],
+      
+    # Continue and close buttons
+    [sg.Button('Continue'), sg.Button('Quit')]
+          ]
 
+  window = sg.Window('  Find Song', findLayout)
 
-# def DelSong():
+  while True:
 
-# def SearchSong():
+    event, values = window.read()
+
+    find = values['inputFind']
+
+    contain = False
+  
+    # Checks row in table
+    for song in records:
+      # Checks column in row
+      for info in song:
+        # if input is present, prints all possible students
+        if find.lower() in info.lower():
+          window["state"].update(" ".join(song))
+          contain = True
+          break
+  
+    # If input doesn't exist in table
+    if not contain:
+      window["state"].update("Song does not exist.")
+
+  window.close()
+  
 
 def MakeTableData():
     headings = ['ID', 'Song Name', 'Artist', 'Time']
@@ -222,13 +295,10 @@ def MakeTable():
 
         if values[0]:
           AddSong()
-          continue
         elif values[1]:
           DelSong()
-          continue
-        else:
+        elif values[2]:
           SearchSong()
-          continue
 
     window.close()
 
