@@ -1,5 +1,7 @@
 # https://www.w3schools.com/sql/sql_autoincrement.asp
 # GUI Table Base: https://www.youtube.com/watch?v=ETHtvd-_FJg
+# Need to fix: Search only displays 1 result
+# 
 
 
 import PySimpleGUI as sg
@@ -75,17 +77,25 @@ def AddSong():
 
     event, values = window.read()
 
-    ID = values['inputAddID']
+    addID = values['inputAddID']
+    addSongName = values['inputSongName']
+    addArtist = values['inputArtist']
+    addTimeLength = values['inputTimeLength']
     
     # For when the user closes the window or clicks cancel
     if event == sg.WIN_CLOSED or event == 'Quit':
       break  
       
     for i in range(len(records)):
-      if ID == records[i][0]:
+      if addID == records[i][0]:
         window["state"].update("Song ID already in use.")
 
-
+    sqlite_insert_query = """insert INTO SongList
+                           (identity, songName, artist, length)
+                           VALUES (?, ?, ?, ?);"""
+    recordsToInsert = [(addID, addSongName, addArtist, addTimeLength)]      
+    cursor.executemany(sqlite_insert_query, recordsToInsert)
+    sqliteConnection.commit()
 
   window.close()
 
@@ -132,9 +142,9 @@ def SearchSong():
   findLayout = [
     
     # Select difficulty text
-    [sg.Text("Please enter an ID to delete a song.")],
+    [sg.Text("Please enter an ID, song name, artist, or length to search.")],
     [sg.InputText(key = 'inputFind')],
-    [sg.Text("", key = 'state')],
+    [sg.Text("\n\n\n\n\n\n", key = 'state')],
       
     # Continue and close buttons
     [sg.Button('Continue'), sg.Button('Quit')]
@@ -156,7 +166,7 @@ def SearchSong():
       for info in song:
         # if input is present, prints all possible students
         if find.lower() in info.lower():
-          window["state"].update(" ".join(song))
+          window["state"].update(", ".join(song))
           contain = True
           break
   
@@ -283,6 +293,7 @@ def MakeTable():
         event, values = window.read()
         if event in (sg.WIN_CLOSED, 'Quit'):
             break
+            window.close()
         # Checks if the event object is of tuple data type, indicating a click on a cell'
         elif isinstance(event, tuple):
             if isinstance(event[2][0], int) and event[2][0] > -1:
@@ -300,6 +311,6 @@ def MakeTable():
         elif values[2]:
           SearchSong()
 
-    window.close()
+    
 
 MakeTable()
