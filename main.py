@@ -1,7 +1,7 @@
 # https://www.w3schools.com/sql/sql_autoincrement.asp
 # GUI Table Base: https://www.youtube.com/watch?v=ETHtvd-_FJg
-# Need to fix: Search only displays 1 result
-# 
+# Need to fix: Search needs overhaul
+# Need to fix: Add can put in blanks?
 
 
 import PySimpleGUI as sg
@@ -54,7 +54,7 @@ def AddSong():
   # The stuff inside the window. sg.Text() is basically the gui version of print()
   addLayout = [
     
-    # Select difficulty text
+    # Layout of Add Song Window
     [sg.Text("Please enter a valid ID.")],
     [sg.InputText(key = 'inputAddID')],
     [sg.Text("Please enter the song name.")],
@@ -81,6 +81,8 @@ def AddSong():
     addSongName = values['inputSongName']
     addArtist = values['inputArtist']
     addTimeLength = values['inputTimeLength']
+    existID = False
+    blankInput = False
     
     # For when the user closes the window or clicks cancel
     if event == sg.WIN_CLOSED or event == 'Quit':
@@ -89,13 +91,25 @@ def AddSong():
     for i in range(len(records)):
       if addID == records[i][0]:
         window["state"].update("Song ID already in use.")
+        existID = True
+        break
+    if existID:
+      continue
 
+    if addID.strip() == '' or addSongName.strip() == '' or addArtist.strip() == '' or addTimeLength.strip() == '':
+      window["state"].update("No Input")
+      blankInput = True
+      break
+    if blankInput:
+      continue
+    
     sqlite_insert_query = """insert INTO SongList
                            (identity, songName, artist, length)
                            VALUES (?, ?, ?, ?);"""
     recordsToInsert = [(addID, addSongName, addArtist, addTimeLength)]      
     cursor.executemany(sqlite_insert_query, recordsToInsert)
     sqliteConnection.commit()
+    break
 
   window.close()
 
@@ -123,29 +137,28 @@ def DelSong():
     if event == sg.WIN_CLOSED or event == 'Quit':
       break
 
-  sqlite_delete_query = "delete from Students where studentNumber = '" + str(delID) +"';"    
-  cursor.execute(sqlite_delete_query)
-  sqliteConnection.commit()
+    sqlite_delete_query = "delete from SongList where identity = '" + str(delID) +"';"
+    cursor.execute(sqlite_delete_query)
+    sqliteConnection.commit()
 
-  # Error checking
-  if int(cursor.rowcount) > 0:
-    window["state"].update(+ str(cursor.rowcount) + " row successfully deleted")
-  elif int(cursor.rowcount) > 0:
-    window["state"].update("No students found. Try again. (" + str(cursor.rowcount) + " rows successfully deleted).")
-  else:
-    window["state"].update("Input invalid. Try again.")
+    # Error checking
+    if int(cursor.rowcount) > 0:
+      window["state"].update("No songs found. Try again. (" + str(cursor.rowcount) + " rows successfully deleted).")
+    else:
+      window["state"].update("Input invalid. Try again.")
+
+    break
     
   window.close()
   
   
 def SearchSong():
   findLayout = [
-    
-    # Select difficulty text
-    [sg.Text("Please enter an ID, song name, artist, or length to search.")],
-    [sg.InputText(key = 'inputFind')],
-    [sg.Text("\n\n\n\n\n\n", key = 'state')],
-      
+
+    [sg.Text("Search for:")]
+    [sg.Radio('Song Name', "RADIO1"), sg.Radio('Artist', "RADIO1")],
+
+    [sg.InputText("", key = 'inputSearch')]
     # Continue and close buttons
     [sg.Button('Continue'), sg.Button('Quit')]
           ]
@@ -158,6 +171,10 @@ def SearchSong():
 
     find = values['inputFind']
 
+    # For when the user closes the window or clicks cancel
+    if event == sg.WIN_CLOSED or event == 'Quit':
+      break
+    
     contain = False
   
     # Checks row in table
@@ -232,7 +249,7 @@ def EditCell(window, key, row, col, justify='left'):
     # textvariable represents a text value
     textvariable = sg.tk.StringVar()
     textvariable.set(text)
-    # Used to acceot single line text input from user - editable text input
+    # Used to accept single line text input from user - editable text input
     # frame is the parent window, textvariable is the initial value, justify is the position
     entry = sg.tk.Entry(frame, textvariable=textvariable, justify=justify)
     # Organizes widgets into blocks before putting them into the parent
@@ -256,22 +273,7 @@ def MakeTable():
 
     headings, data = MakeTableData()
     sg.set_options(dpi_awareness=True)
-    layout = [[sg.Table(values=data, headings=headings, max_col_width=25,
-                        font=("Arial", 15),
-                        auto_size_columns=True,
-                        # display_row_numbers=True,
-                        justification='right',
-                        num_rows=20,
-                        alternating_row_color=sg.theme_button_color()[1],
-                        key='-TABLE-',
-                        # selected_row_colors='red on yellow',
-                        # enable_events=True,
-                        # select_mode=sg.TABLE_SELECT_MODE_BROWSE,
-                        expand_x=True,
-                        expand_y=True,
-                        enable_click_events=True,  # Comment out to not enable header and other clicks
-                        )],
-              [sg.Text("Start a command below.")],
+    layout = [[sg.Text("Start a command below.")],
               
               # Difficulty radio buttons.
               [
@@ -282,13 +284,35 @@ def MakeTable():
                  
               # Continue and close buttons
               [sg.Button('Continue'), sg.Button('Quit')],
+      
+      [sg.Table(values=data, headings=headings, max_col_width=50,
+                        font=("Arial", 15),
+                        auto_size_columns=True,
+                        # display_row_numbers=True,
+                        justification='right',
+                        num_rows=20,
+                        alternating_row_color=sg.theme_button_color()[1],
+                        key='-TABLE-',
+                        # selected_row_colors='red on yellow',
+                        # enable_events=True,
+                        select_mode=sg.TABLE_SELECT_MODE_NONE,
+                        expand_x=True,
+                        expand_y=True,
+                        enable_click_events=False,  # Comment out to not enable header and other clicks
+                        )],
 
-              [sg.Text('Cell clicked:'), sg.T(key='-CLICKED_CELL-')]]
+
+              # [sg.Text('Cell clicked:'), sg.T(key='-CLICKED_CELL-')]
+             ]
 
 
     window = sg.Window('  Song List', layout, resizable=True, finalize=True)
 
     while True:
+        GetSongInfo()
+        heading, data = MakeTableData()
+        window['-TABLE-'].update(data)
+      
         print()
         event, values = window.read()
         if event in (sg.WIN_CLOSED, 'Quit'):
