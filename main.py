@@ -2,10 +2,12 @@
 # GUI Table Base: https://www.youtube.com/watch?v=ETHtvd-_FJg
 # Need to fix: Search needs overhaul
 # Need to fix: Add can put in blanks?
-
+# sort multi-dimensional arrays
 
 import PySimpleGUI as sg
 import sqlite3
+
+
 
 # SQL stuff
 sqliteConnection = sqlite3.connect('musicList.db')
@@ -50,6 +52,8 @@ if not cursor.fetchone()[0]==1:
 
 GetSongInfo()
 
+###########################################
+
 # Add Song Code
 def AddSong():
   # The stuff inside the window. sg.Text() is basically the gui version of print()
@@ -83,32 +87,22 @@ def AddSong():
     addSongName = values['inputSongName']
     addArtist = values['inputArtist']
     addTimeLength = values['inputTimeLength']
-
-    # Error checking triggers
-    existID = False
-    blankInput = False
     
     # For when the user closes the window or clicks cancel
     if event == sg.WIN_CLOSED or event == 'Quit':
       break  
 
+    maxID = 0
+      
     # Finds whether ID is unique
     for i in range(len(records)):
-      if addID == records[i][0]:
-        window["state"].update("Song ID already in use.")
-        existID = True
-        break
-    if existID:
-      continue
+      intID = int(records[i][0])
+      if intID > maxID:
+        maxID = intID
 
-    # Finds if input is blank. Technically works?
-    if addID.strip() == '' or addSongName.strip() == '' or addArtist.strip() == '' or addTimeLength.strip() == '':
-      window["state"].update("No Input")
-      blankInput = True
-      break
-    if blankInput:
-      continue
-
+    addID = str(maxID + 1)
+    addID = '0' * (6 - len(addID)) + addID
+    
     # SQL input stuff
     sqlite_insert_query = """insert INTO SongList
                            (identity, songName, artist, length)
@@ -120,6 +114,8 @@ def AddSong():
 
   window.close()
 
+###########################################
+  
 # Delete Command
 def DelSong():
   # Delete window layout
@@ -159,17 +155,64 @@ def DelSong():
     break
     
   window.close()
-  
 
+###########################################
+
+def SearchResults(data):
+
+  headings = ['ID', 'Song Name', 'Artist', 'Time']
+  
+  resultLayout = [[sg.Text("Results of search:")],
+
+                  [sg.Button('Quit')],
+
+      # Table Settings
+      [sg.Table(values=data, headings=headings, max_col_width=50,
+                        font=("Arial", 15),
+                        auto_size_columns=True,
+                        # display_row_numbers=True,
+                        justification='right',
+                        num_rows=20,
+                        alternating_row_color=sg.theme_button_color()[1],
+                        key='-TABLE-',
+                        # selected_row_colors='red on yellow',
+                        # enable_events=True,
+                        select_mode=sg.TABLE_SELECT_MODE_NONE,
+                        expand_x=True,
+                        expand_y=True,
+                        enable_click_events=False,  # Comment out to not enable header and other clicks
+                        )],
+
+
+              # [sg.Text('Cell clicked:'), sg.T(key='-CLICKED_CELL-')]
+             ]
+
+
+  window = sg.Window('  Search Results', resultLayout, resizable=True, finalize=True)
+
+  while True:
+    event, values = window.read()
+
+    # Closes program
+    if event in (sg.WIN_CLOSED, 'Quit'):
+        window.close()
+        break
+        
+
+###########################################
+  
 # Currently being redone
 def SearchSong():
   # Layout of Search window
   findLayout = [
 
     [sg.Text("Search for:")],
-    [sg.Radio('Song Name', "RADIO1"), sg.Radio('Artist', "RADIO1")],
+   
+    [sg.Radio('Song Name', "RADIO1", default = True), sg.Radio('Artist', "RADIO1")],
 
     [sg.InputText("", key = 'inputSearch')],
+    
+    [sg.Text("", key = 'state')],
    
     # Continue and close buttons
     [sg.Button('Continue'), sg.Button('Quit')]
@@ -181,31 +224,42 @@ def SearchSong():
 
     event, values = window.read()
 
-    find = values['inputFind']
-
+    find = values['inputSearch']
+    contain = False
+    # Array for found songs
+    foundSongs = []
+    
     # For when the user closes the window or clicks cancel
     if event == sg.WIN_CLOSED or event == 'Quit':
+      window.close()
       break
-    
-    contain = False
-  
-    # Checks row in table
-    for song in records:
-      # Checks column in row
-      for info in song:
-        # if input is present, prints all possible students
-        if find.lower() in info.lower():
-          window["state"].update(", ".join(song))
-          contain = True
-          break
+
+    # Search for song name
+    if values[0]:
+      for song in records:
+          if find.lower() in song[1].lower():
+            foundSongs.append(song)
+            #window["state"].update(", ".join(song))
+            contain = True
+            
+    # Search for artist
+    if values[1]:
+      # Checks row in table
+      for song in records:
+          # if input is present, prints all possible students
+          if find.lower() in song[2].lower():
+            foundSongs.append(song)
+            contain = True
   
     # If input doesn't exist in table
     if not contain:
-      window["state"].update("Song does not exist.")
+      window["state"].update("No song found.")
+    else:
+      window.close()
+      SearchResults(foundSongs)
+      break
 
-    break
-
-  window.close()
+###########################################
   
 # Defines heading and converts records into data
 def MakeTableData():
@@ -213,6 +267,8 @@ def MakeTableData():
     data = records
 
     return headings, data
+
+###########################################
 
 # TKinter function to display and edit value in cell. Currently Unused
 def EditCell(window, key, row, col, justify='left'):
@@ -280,6 +336,8 @@ def EditCell(window, key, row, col, justify='left'):
     # which corresponds to the "FocusOut" (clicking outside of the cell) event
     entry.bind("<FocusOut>", lambda e, r=row, c=col, t=text, k='Focus_Out':Callback(e, r, c, t, k))
 
+###########################################
+  
 # Main Window
 def MakeTable():
     global edit
@@ -291,11 +349,11 @@ def MakeTable():
     sg.set_options(dpi_awareness=True)
 
     # Layout of main window
-    layout = [[sg.Text("Start a command below. Currently Search doesn't work")],
+    layout = [[sg.Text("Start a command below.")],
               
               # Command radio buttons.
               [
-                sg.Radio('Add Song', "RADIO1", default=True),
+                sg.Radio('Add Song', "RADIO1", default = True),
                 sg.Radio('Delete Song', "RADIO1"),
                 sg.Radio('Search', "RADIO1"),
               ],
@@ -338,8 +396,9 @@ def MakeTable():
 
         # Closes program
         if event in (sg.WIN_CLOSED, 'Quit'):
-            break
             window.close()
+            break
+            
         
         # Checks if the event object is of tuple data type, indicating a click on a cell. Currently Unused
         elif isinstance(event, tuple):
@@ -359,6 +418,6 @@ def MakeTable():
         elif values[2]:
           SearchSong()
 
-
+###########################################
 
 MakeTable()
