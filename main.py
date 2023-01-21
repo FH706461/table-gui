@@ -60,16 +60,15 @@ def AddSong():
   addLayout = [
     
     # Layout of Add Song Window
-    [sg.Text("Please enter a valid ID.")],
-    [sg.InputText(key = 'inputAddID')],
     [sg.Text("Please enter the song name.")],
     [sg.InputText(key = 'inputSongName')],
     [sg.Text("Please enter the artist.")],
     [sg.InputText(key = 'inputArtist')],
     [sg.Text("Please enter the length of the song.")],
-    [sg.InputText(key = 'inputTimeLength')],
+    [sg.InputText(key = 'inputTimeMinutes', size = (5, 1)), sg.Text("minutes"), sg.InputText(key = 'inputTimeSeconds', size = (5, 1)), sg.Text("seconds")],
     [sg.Text("", key = 'state')],
 
+# 2 input boxes
     # Continue and close buttons
     [sg.Button('Continue'), sg.Button('Quit')]
           ]
@@ -83,26 +82,57 @@ def AddSong():
     event, values = window.read()
 
     # Defining info given
-    addID = values['inputAddID']
     addSongName = values['inputSongName']
     addArtist = values['inputArtist']
-    addTimeLength = values['inputTimeLength']
+    addTimeMinutes = values['inputTimeMinutes']
+    addTimeSeconds = values['inputTimeSeconds']
     
     # For when the user closes the window or clicks cancel
     if event == sg.WIN_CLOSED or event == 'Quit':
       break  
 
-    maxID = 0
+    # Checks for blank inputs
+    if addSongName.strip() == '' or addArtist.strip() == '' or addTimeMinutes.strip() == '' or addTimeSeconds.strip() == '':
+      window["state"].update("Blank input. Try again.")
+      continue
+
+    # Checks if time is a number
+    try:
+      int(addTimeMinutes) and int(addTimeSeconds)
+    except:
+      window["state"].update("Time is not a number. Try again.")
+      continue
+
+    # Checks if seconds are bigger than 2 digits (Ex. 001, 100)
+    if len(addTimeSeconds) > 2:
+      window["state"].update("Seconds inputted are larger than 2 digits. Try again.")
+      continue
+
+    # Checks if seconds exceeds 60
+    if int(addTimeSeconds) >= 60:
+      window["state"].update("Seconds inputted are larger than 59 seconds. Try again.")
+      continue
       
-    # Finds whether ID is unique
+    # Adds 0 to front if seconds are not 2 digits
+    addTimeSeconds = str(addTimeSeconds)
+    addTimeSeconds = '0' * (2 - len(addTimeSeconds)) + addTimeSeconds
+
+    # Puts minutes and seconds together
+    addTimeLength = (addTimeMinutes + ":" + addTimeSeconds)
+    
+    # Base ID
+    maxID = 0
+    
+    # Finding biggest ID
     for i in range(len(records)):
       intID = int(records[i][0])
       if intID > maxID:
         maxID = intID
 
+    # Generates new ID by checking biggest ID and adding 1
     addID = str(maxID + 1)
     addID = '0' * (6 - len(addID)) + addID
-    
+
     # SQL input stuff
     sqlite_insert_query = """insert INTO SongList
                            (identity, songName, artist, length)
@@ -142,15 +172,22 @@ def DelSong():
     if event == sg.WIN_CLOSED or event == 'Quit':
       break
 
+    # Check for blank inputs
+    if delID.strip() == '':
+      window["state"].update("Blank input. Try again.")
+      continue
+
+    # Checks for letters
+    try:
+      int(delID)
+    except:
+      window["state"].update("Input is not a number. Try again.")
+      continue
+
+    # SQL delete stuff stuff
     sqlite_delete_query = "delete from SongList where identity = '" + str(delID) +"';"
     cursor.execute(sqlite_delete_query)
     sqliteConnection.commit()
-
-    # Error checking
-    if int(cursor.rowcount) > 0:
-      window["state"].update("No songs found. Try again. (" + str(cursor.rowcount) + " rows successfully deleted).")
-    else:
-      window["state"].update("Input invalid. Try again.")
       
     break
     
@@ -158,9 +195,11 @@ def DelSong():
 
 ###########################################
 
+# Window that shows search results
 def SearchResults(data):
 
-  headings = ['ID', 'Song Name', 'Artist', 'Time']
+  # Table headings
+  headings = ['ID', 'Song Name', 'Artist', '  Time  ']
   
   resultLayout = [[sg.Text("Results of search:")],
 
@@ -201,7 +240,7 @@ def SearchResults(data):
 
 ###########################################
   
-# Currently being redone
+# Search command
 def SearchSong():
   # Layout of Search window
   findLayout = [
@@ -226,6 +265,7 @@ def SearchSong():
 
     find = values['inputSearch']
     contain = False
+    
     # Array for found songs
     foundSongs = []
     
@@ -234,19 +274,25 @@ def SearchSong():
       window.close()
       break
 
+    # Checks for blank inputs
+    if find.strip() == '':
+      window["state"].update("Blank input. Try again.")
+      continue
+      
     # Search for song name
     if values[0]:
+      # Checks row in table
       for song in records:
+          # if input is present, displays all possible songs
           if find.lower() in song[1].lower():
             foundSongs.append(song)
-            #window["state"].update(", ".join(song))
             contain = True
             
     # Search for artist
     if values[1]:
       # Checks row in table
       for song in records:
-          # if input is present, prints all possible students
+          # if input is present, displays all possible songs
           if find.lower() in song[2].lower():
             foundSongs.append(song)
             contain = True
@@ -256,6 +302,7 @@ def SearchSong():
       window["state"].update("No song found.")
     else:
       window.close()
+      # Starts up results table
       SearchResults(foundSongs)
       break
 
@@ -263,14 +310,14 @@ def SearchSong():
   
 # Defines heading and converts records into data
 def MakeTableData():
-    headings = ['ID', 'Song Name', 'Artist', 'Time']
+    headings = ['ID', 'Song Name', 'Artist', '  Time  ']
     data = records
 
     return headings, data
 
 ###########################################
 
-# TKinter function to display and edit value in cell. Currently Unused
+# TKinter function to display and edit value in cell. Currently unused
 def EditCell(window, key, row, col, justify='left'):
 
     global textvariable, edit
@@ -347,7 +394,7 @@ def MakeTable():
     # Defines heading and info shown
     headings, data = MakeTableData()
     sg.set_options(dpi_awareness=True)
-
+  
     # Layout of main window
     layout = [[sg.Text("Start a command below.")],
               
